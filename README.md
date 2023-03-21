@@ -72,12 +72,12 @@ There are 2 labs in this workshop:
   - Experiment with notebooks in `notebooks` folder to explore data and model 
   - Build pipeline by nativateing to `ml-pipelines` cli or sdk and running corresponding notebooks
   - Review components of the pipeline and fill in missing parts and refrences 
-  - Once pipeline is run Model will be trained and registered in the WS registry
+  - Once pipeline is finished, model will be trained and registered in the WS registry
 
 ## Lab 2. Building a deployment pipeline, it could either a online endpoint or batch online. 
-  - Deploy Model by nativateing to `ml-pipelines` cli or sdk and running corresponding notebooks
+  - Deploy Model by navigating to `ml-pipelines` cli or sdk and running corresponding notebooks
   - In this lab, we also provided ci-cd folder to demonstrate Azure Pipeline or Github action orchastration of CI/CD pipeline. 
-    - For GH Actions follow https://github.com/lenisha/mlops-v2-workshop/blob/main/ci-cd/README-GH.md
+    - For GH Actions follow [./ci-cd/README-GH.md](./ci-cd/README-GH.md)
 
 
 
