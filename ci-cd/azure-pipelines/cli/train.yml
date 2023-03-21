@@ -24,7 +24,6 @@ steps:
   inputs:
     azureSubscription: 'Azure-ARM-Prod'
     scriptType: 'bash'
-    scriptLocation: 'inlineScript'
-    inlineScript: |
-      train.sh
-    workingDirectory: 'ml-pipelines/cli'
+    scriptLocation: 'scriptPath'
+    inlineScript: 'train.sh'
+    workingDirectory: '$(System.DefaultWorkingDirectory)/ml-pipelines/cli'
