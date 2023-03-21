@@ -15,15 +15,16 @@ steps:
     versionSpec: '3.8'
 - script: pip install -r ci-cd/azure-pipelines/dev-requirements.txt
   displayName: 'pip install notebook reqs'
+
 - task: Bash@3
   inputs:
     filePath: 'ci-cd/azure-pipelines/setup-sdk.sh'
   displayName: 'Install AML SDK v2'
 
 - task: AzureCLI@2
-    displayName: Install AML CLI v2
-    inputs:
-      azureSubscription: 'Azure-ARM-Prod'
+  displayName: Install AML CLI v2
+  inputs:
+      azureSubscription:  $(ado_service_connection_aml_ws)
       scriptType: bash
       scriptLocation: inlineScript
       workingDirectory: code/
