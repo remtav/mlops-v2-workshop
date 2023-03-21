@@ -1,11 +1,11 @@
 # DEPLOY
 
 # Deploy Online Endpoint
-az configure --defaults group=mldemorg workspace=mldemo location=eastus
+az configure --defaults group=openaml workspace=nlp-workspace location=eastus2
 # create online endpoint
-az ml _____________ create --file deploy/online/online-endpoint.yml
+az ml online-endpoint create --file deploy/online/online-endpoint.yml
 # create online deployment
-az ml ________________ create --file deploy/online/online-deployment.yml 
+az ml online-deployment create --file deploy/online/online-deployment.yml 
 # allocate traffic
 az ml online-endpoint update --name taxi-online-endpoint --traffic blue=100
 # invoke and test endpoint
