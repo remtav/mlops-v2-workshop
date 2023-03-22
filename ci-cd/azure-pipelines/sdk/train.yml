@@ -4,25 +4,50 @@ trigger:
 pool:
   vmImage: ubuntu-latest
 
+variables:
+  rg_name: openaml
+  ws_name: nlp-workspace 
+  ado_service_connection_aml_ws: Azure-ARM-Prod
+
+
 steps:
 - task: UsePythonVersion@0
   inputs:
     versionSpec: '3.8'
 - script: pip install -r ci-cd/azure-pipelines/dev-requirements.txt
   displayName: 'pip install notebook reqs'
+
 - task: Bash@3
   inputs:
     filePath: 'ci-cd/azure-pipelines/setup-sdk.sh'
   displayName: 'set up sdk'
 
-- task: Bash@3
+- task: AzureCLI@2
+  displayName: Install AML CLI v2
   inputs:
-    filePath: 'ci-cd/azure-pipelines/setup-cli.sh'
-  displayName: 'set up CLI'
+      azureSubscription:  $(ado_service_connection_aml_ws)
+      scriptType: bash
+      scriptLocation: inlineScript
+      workingDirectory: code/
+      inlineScript: |
+        set -e # fail on error
+        az version
+        az extension add -n ml -y
+        az extension update -n ml
+        az extension list
+
+- task: AzureCLI@2
+  displayName: Connect to AML Workspace using CLI v2
+  inputs:
+      azureSubscription: $(ado_service_connection_aml_ws)
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        az configure --defaults group=${{ variables.rg_name }} workspace=${{ variables.ws_name }}
 
 - task: AzureCLI@2
   inputs:
-    azureSubscription: 'azureml-mldemo' #name of the AzureML service connection defined in Azure Pipelines
+    azureSubscription: $(ado_service_connection_aml_ws) #name of the AzureML service connection defined in Azure Pipelines
     scriptType: 'bash'
     scriptLocation: 'inlineScript'
     inlineScript: |
