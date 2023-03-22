@@ -1,0 +1,158 @@
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License.
+
+variables:
+- template: ../../config-infra-prod.yml
+- name: endpoint_name
+  value: taxi-online-$(namespace)$(postfix)$(environment)
+
+- name:  endpoint_file 
+  value: ml-pipelines/cli/deploy/online/online-endpoint.yml  
+
+- name: endpoint_type
+  value: online
+
+- name: buildid
+  value: $[replace(variables['Build.BuildNumber'], '.', '-')]
+
+- name: deployment_name
+  value: taxi-online-dp-$(buildid)
+
+- name:  deployment_file
+  value: ml-pipelines/cli/deploy/online/online-deployment.yml 
+
+- name:  sample_request
+  value: data/taxi-request.json     
+
+# This sets up the optional triggers for the running the pipeline.
+# Note: This pipeline is triggered by a manual trigger.
+#       This is to avoid running the pipeline when the pipeline is updated.
+#
+#       See the documentation for more information.
+#       https://learn.microsoft.com/en-us/azure/devops/pipelines/build/triggers?view=azure-devops
+trigger:
+- none
+
+# This the image that is used to run the pipeline
+# Note: This is the image that is used to run the pipeline.
+#       The image is a Ubuntu 20.04 image.
+#
+#       See the documentation for more information.
+#       https://docs.microsoft.com/en-us/azure/devops/pipelines/agents/hosted?view=azure-devops&tabs=yaml
+pool:
+  vmImage: ubuntu-20.04
+
+stages:
+- stage: CreateDevOnlineEndpoint
+  displayName: Create/Update Dev Online Endpoint
+  jobs:
+    - job: DeployOnlineEndpoint
+      steps:
+      - checkout: self
+        path: s/
+
+      - task: UsePythonVersion@0
+        inputs:
+            versionSpec: '3.8'
+      - script: pip install -r ci-cd/azure-pipelines/dev-requirements.txt
+        displayName: 'pip install notebook reqs'
+
+      - task: Bash@3
+        inputs:
+          filePath: 'ci-cd/azure-pipelines/setup-sdk.sh'
+        displayName: 'Install AML SDK v2'
+
+      - task: AzureCLI@2
+        displayName: Install AML CLI v2
+        inputs:
+            azureSubscription:  $(ado_service_connection_aml_ws)
+            scriptType: bash
+            scriptLocation: inlineScript
+            workingDirectory: code/
+            inlineScript: |
+              set -e # fail on error
+              az version
+              az extension add -n ml -y
+              az extension update -n ml
+              az extension list
+
+      - task: AzureCLI@2
+        displayName: Connect to AML Workspace using CLI v2
+        inputs:
+            azureSubscription: $(ado_service_connection_aml_ws)
+            scriptType: bash
+            scriptLocation: inlineScript
+            inlineScript: |
+              az configure --defaults group=${{ variables.rg_name }} workspace=${{ variables.ws_name }}
+  
+      - task: AzureCLI@2
+        displayName: Create online/batch endpoint 
+        continueOnError: true
+        inputs: 
+          azureSubscription: $(ado_service_connection_rg) #needs to have access at the RG level 
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            ENDPOINT_EXISTS=$(az ml $(endpoint_type)-endpoint list -o tsv --query "[?name=='$(endpoint_name)'][name]" | wc -l)
+            echo $ENDPOINT_NAME $ENDPOINT_EXISTS
+            az ml $(endpoint_type)-endpoint list -o tsv
+            if [[ ENDPOINT_EXISTS -ne 1 ]]; then
+                az ml $(endpoint_type)-endpoint create --name $(endpoint_name) -f ${{ variables.endpoint_file }}
+            else
+                echo "Endpoint exists"
+            fi
+      
+      - task: AzureCLI@2
+        displayName: Create deployment
+        continueOnError: true
+        inputs: 
+          azureSubscription: $(ado_service_connection_rg) #needs to have access at the RG level 
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            set -o xtrace
+            az ml $(endpoint_type)-deployment create --name ${{ variables.deployment_name }} --endpoint $(endpoint_name) \
+              -f ${{ variables.deployment_file }}       
+
+              
+      - task: AzureCLI@2
+        displayName: Update traffic allocation
+        inputs:
+           azureSubscription: $(ado_service_connection_rg) #needs to have access at the RG level 
+           scriptType: bash
+           scriptLocation: inlineScript
+           inlineScript: |
+             set -e
+             az ml online-endpoint update --name $(endpoint_name) --traffic "${{variables.deployment_name}}=100"
+
+      - task: AzureCLI@2
+        displayName: Test deployment
+        inputs: 
+          azureSubscription: $(ado_service_connection_rg) #needs to have access at the RG level 
+          scriptType: bash
+          workingDirectory: $(System.DefaultWorkingDirectory)
+          scriptLocation: inlineScript
+          inlineScript: |
+            set -e
+            RESPONSE=$(az ml $(endpoint_type)-endpoint invoke -n $(endpoint_name) --deployment-name ${{ variables.deployment_name }} --request-file ${{ variables.sample_request }})
+            echo $RESPONSE 
+
+
+- stage: CreateProdvOnlineEndpoint
+  displayName: Create/Update Prod Online Endpoint
+  dependsOn: 'CreateDevOnlineEndpoint'
+  jobs:
+  - deployment: DeployOnlineEndpoint
+    environment: 'prod'
+    strategy: 
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+            path: s/
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: 'AzureMLDemo'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: 'echo Deploy to Prod!!'
