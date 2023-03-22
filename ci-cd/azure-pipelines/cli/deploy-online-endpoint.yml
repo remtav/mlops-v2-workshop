@@ -22,7 +22,9 @@ variables:
   value: ml-pipelines/cli/deploy/online/online-deployment.yml 
 
 - name:  sample_request
-  value: data/taxi-request.json     
+  value: data/taxi-request.json 
+
+
 
 # This sets up the optional triggers for the running the pipeline.
 # Note: This pipeline is triggered by a manual trigger.
@@ -83,7 +85,7 @@ stages:
             scriptType: bash
             scriptLocation: inlineScript
             inlineScript: |
-              az configure --defaults group=${{ variables.rg_name }} workspace=${{ variables.ws_name }}
+              az configure --defaults group=${{ variables.resource_group }} workspace=${{ variables.aml_workspace }}
   
       - task: AzureCLI@2
         displayName: Create online/batch endpoint 
